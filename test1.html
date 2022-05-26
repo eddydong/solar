@@ -1,0 +1,123 @@
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">  
+</head>
+
+<body id="body" style="overflow: hidden; margin: 0; background: #000000">
+<div id="DivMain" sytle="width:100%; height:100%; position:absolute;">
+<canvas id="DivCanvas" sytle="width:100%; height:100%; position:absolute;"></canvas>
+</div>
+</body>
+
+<script>
+
+var
+	canvas=document.getElementById("DivCanvas"),
+	ctx=canvas.getContext("2d");
+
+function getAngle(dx, dy){
+dx=dx || 0;
+dy=dy || 0;
+var a=Math.atan(dy/dx);
+if (dx<0 && dy>0) { a+=Math.PI; };
+if (dx<0 && dy<0) { a+=Math.PI; };
+if (dx>0 && dy<0) { a+=2*Math.PI; };
+if (dx<0 && dy==0) { a=Math.PI;};
+if (dx==0 && dy==0) { a=0;};
+return a%(Math.PI*2);
+};
+
+function getGravity(a,b){
+	return (a.m*b.m*G)/(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2));
+};
+
+function getDistance(a,b){
+	return Math.pow(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2), 1/2);
+};
+
+function resize(){
+	canvas.width=window.innerWidth;
+	canvas.height=window.innerHeight;
+};
+
+var newlinepos=0;
+function printline(s){
+	newlinepos+=20;
+	ctx.save();
+	ctx.font="16px Arial";
+	ctx.fillStyle="#bbbbbb";
+	ctx.fillText(s,0,newlinepos);
+	ctx.restore();
+};
+
+resize();
+window.addEventListener("resize", resize);
+
+function drawOrbit(X,Y,M,x,y,m,v,dv,zoom){
+var zoom=zoom,
+	G=6.67259e-11, M=M, m=m, 
+	X=X, Y=Y, x=x, y=y,
+	v=v, dv=dv, 
+	A, a, b, c1, c2, d, r, t, rot, tt;
+	
+r=Math.pow((X-x)*(X-x)+(Y-y)*(Y-y),1/2);
+A=dv-getAngle(X-x, Y-y);
+a=-G*M*m/(m*v*v-2*G*M*m/r);
+d=G*G*M*M*m*m-4*(m*v*v*r*r*Math.sin(A)*Math.sin(A)/2)*(G*M*m/r-m*v*v/2);
+c1=1/((G*M*m+Math.pow(d, 1/2))/(m*v*v*r*r*Math.sin(A)*Math.sin(A)))-a;
+c2=1/((G*M*m-Math.pow(d, 1/2))/(m*v*v*r*r*Math.sin(A)*Math.sin(A)))-a;
+b=Math.pow(a*a-c2*c2,1/2);
+var tt=(r*r+4*c2*c2-(2*a-r)*(2*a-r))/(4*r*c2);
+if (tt>1){tt=1} else if (tt<-1){tt=-1};
+t= Math.acos(tt);
+rot=t+getAngle(x,y);
+
+ctx.save();
+ctx.translate(canvas.width/2+X*zoom, canvas.height/2+Y*zoom);
+ctx.rotate(rot);
+ctx.translate(c2*zoom, 0);
+ctx.scale(1,b/a);
+ctx.strokeStyle="rgba(255,255,255,0.3)";
+ctx.beginPath();
+ctx.arc(0,0,a*zoom,0,Math.PI*2);
+ctx.stroke();
+ctx.restore();
+
+ctx.save();
+ctx.translate(canvas.width/2, canvas.height/2);
+ctx.fillStyle="#ff5555";
+ctx.fillRect(x*zoom-2,y*zoom-2,4,4);
+ctx.fillStyle="#55ff55";
+ctx.fillRect(X*zoom-4,Y*zoom-4,8,8);
+ctx.strokeStyle="rgba(255,0,0,0.5)";
+ctx.beginPath();
+ctx.moveTo(x*zoom, y*zoom);
+ctx.lineTo(x*zoom+50*Math.cos(dv), y*zoom+50*Math.sin(dv));
+ctx.stroke();
+ctx.restore();
+
+printline("r= "+r);
+printline("dv= "+dv);
+printline("A= "+A);
+printline("a= "+a);
+printline("d= "+d);
+printline("c1= "+c1);
+printline("c2= "+c2);
+printline("b= "+b);
+printline("tt= "+tt);
+printline("t= "+t);
+printline("rot= "+rot);
+};
+
+//M,x,y,m,v,dv,zoom
+var aa=800;of=500e6;
+drawOrbit(of,of, 5.965e24,
+			of-384e6,of+243e6,7.349e22,
+			aa,-Math.PI/2,100/38.4e7);
+// drawOrbit(-of,of, 5.965e24,of+384e6,of+243e6,7.349e22,aa,-Math.PI/2,100/38.4e7);
+// drawOrbit(of,-of, 5.965e24,of-384e6,of-243e6,7.349e22,aa,-Math.PI/2,100/38.4e7);
+// drawOrbit(-of,-of, 5.965e24,of+384e6,of-243e6,7.349e22,aa,-Math.PI/2,100/38.4e7);
+
+</script>

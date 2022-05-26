@@ -1,0 +1,31 @@
+<script>
+
+var 
+g=6.754e-11;
+t=0;
+v1=0;
+v2=0;
+
+//can be changed
+i=1;
+m1=1.989e30;
+m2=7.346e22;
+s=384403000;
+
+while(s>0)
+{
+	var f,a1,a2,dv1,dv2;
+	f=g*m1*m2/(s*s);
+	a1=f/m1;
+	a2=f/m2;
+	dv1=i*a1;
+	dv2=i*a2;
+	s=s-i*(2*v1+dv1)/2-i*(2*v2+dv2)/2;
+	v1=v1+dv1;
+	v2=v2+dv2;
+	t=t+i;
+};
+
+document.write(t/60);
+
+</script>

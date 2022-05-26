@@ -1,0 +1,452 @@
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">  
+</head>
+
+<body id="body" style="overflow: hidden; margin: 0; background: #000000">
+<div id="DivMain" sytle="width:100%; height:100%; position:absolute;">
+<canvas id="DivCanvas" sytle="width:100%; height:100%; position:absolute;"></canvas>
+</div>
+</body>
+
+<script>
+
+var
+	requestAnimationFrame = window.requestAnimationFrame 
+		|| window.mozRequestAnimationFrame 
+		|| window.webkitRequestAnimationFrame 
+		|| window.msRequestAnimationFrame,
+
+	cancelAnimationFrame = window.cancelAnimationFrame 
+		|| window.mozCancelAnimationFrame 
+		|| window.webkitCancelRequestAnimationFrame,
+
+	ImgEarth = new Image(), ImgMoon = new Image(), ImgShip = new Image(),
+	ImgSun = new Image(), ImgMercury = new Image(), ImgVenus = new Image(),
+	ImgMars = new Image(), ImgJupiter = new Image(), ImgSaturn = new Image(),
+	ImgUranus = new Image(), ImgNeptune = new Image(),
+
+	canvas=document.getElementById("DivCanvas"),
+	ctx=canvas.getContext("2d"),
+	
+	AU=149597870700,
+	shortedge, earth, me, zoom=2e-7, tzoom=100, thistick=0, lasttick=0, thisdraw=0, 
+	lastdraw=0, drawinterval=17,
+	interval=17, universe=[], currentball=0, starttime=0, newlinepos=0,
+	drawcircle=false, indexShip=0, showOrbit=true, showStatus=false, showTail=true;
+
+
+function loadimages(){
+	ImgEarth.src = "img/earth.png";
+	ImgMoon.src="img/moon.png";
+	ImgShip.src="img/ship.png";
+	ImgSun.src="img/sun.png";
+	ImgMercury.src="img/mercury.png";
+	ImgVenus.src="img/venus.png";
+	ImgMars.src="img/mars.png";
+	ImgJupiter.src="img/jupiter.png";
+	ImgSaturn.src="img/saturn.png";
+	ImgUranus.src="img/uranus.png";
+	ImgNeptune.src="img/neptune.png";
+};
+
+function buildobjs(){
+	//name,ismanmade, img,imgScale, imgOffsetX, imgOffsetY, x,y,r,m,v,dv
+// 	earth= new Ball('Earth', false, ImgEarth, 1.02, 0,0, -1.5e11, 0, 6.375e6, 5.965e24, 29.79e3, Math.PI/3);
+// 	moon=new Ball('Moon',false, ImgMoon, 1, 0,0,  384000e3-1.5e11,0, 1738.14e3, 7.349e22, 3020+29.79e3, Math.PI/6);
+// 	sun = new Ball('Sun', false,ImgSun, 1.17,  0,0, 0,0, 696300e3, 1.989e30, 0, 0);
+// 	mercury = new Ball('Mercury', false,ImgMercury, 1, 0,0,  -5791e7,0, 2440e3, 5.965e24*0.0553, 47.89e3, Math.PI/2);
+// 	venus = new Ball('Venus', false,ImgVenus, 1, 0,0,  -108208930e3,0, 6052e3, 5.965e24*0.815, 35.03e3, -Math.PI/2);
+// 	mars = new Ball('Mars', false,ImgMars, 1, 0,0,  -227940000e3,0, 3398e3, 5.965e24*0.1074, 24.13e3, Math.PI/2);
+// 	jupiter = new Ball('Jupiter', false,ImgJupiter, 1, 0,0,  -778330000e3,0, 71492e3, 1.9e27, 13.06e3, Math.PI/2);
+// 	saturn = new Ball('Saturn', false,ImgSaturn, 3, -0.012,0.016,  -1429400000e3,0, 60330e3, 5.965e24*95.18, 9.65e3, Math.PI/2);
+// 	uranus = new Ball('Uranus', false,ImgUranus, 1, 0,0,  -19.2184*AU,0, 25559e3, 5.965e24*14.54, 6.81e3, Math.PI/2);
+// 	neptune = new Ball('Neptune', false,ImgNeptune, 1, 0,0,  -30.1104*AU,0, 24764e3, 5.965e24*17.15, 5.43e3, Math.PI/2);
+
+	//name,ismanmade, img,imgScale, imgOffsetX, imgOffsetY, x,y,r,m,v,dv
+	earth= new Ball('Earth', false, ImgEarth, 1.02, 0,0, -AU, 0, 6.375e6, 5.965e24, 29.79e3, Math.PI/2);
+	moon=new Ball('Moon',false, ImgMoon, 1, 0,0, -384000e3-AU,0, 1738.14e3, 7.349e22, 1020+29.79e3, Math.PI/2);
+	sun = new Ball('Sun', false,ImgSun, 1.17,  0,0, 0,0, 696300e3, 1.989e30, 0, 0);
+	mercury = new Ball('Mercury', false,ImgMercury, 1, 0,0,  -5791e7,0, 2440e3, 5.965e24*0.0553, 47.89e3, Math.PI/2);
+	venus = new Ball('Venus', false,ImgVenus, 1, 0,0,  -108208930e3,0, 6052e3, 5.965e24*0.815, 35.03e3, -Math.PI/2);
+	mars = new Ball('Mars', false,ImgMars, 1, 0,0,  -227940000e3,0, 3398e3, 5.965e24*0.1074, 24.13e3, Math.PI/2);
+	jupiter = new Ball('Jupiter', false,ImgJupiter, 1, 0,0,  -778330000e3,0, 71492e3, 1.9e27, 13.06e3, Math.PI/2);
+	jupiter2 = new Ball('Jupiter2', false,ImgJupiter, 1, 0,0,  -778330000e3+71492e3*20,-71492e3*20, 71492e3, 1.9e27, 19.16e3, Math.PI/2-0.3);
+	saturn = new Ball('Saturn', false,ImgSaturn, 3, -0.012,0.016,  -1429400000e3,0, 60330e3, 5.965e24*95.18, 9.65e3, Math.PI/2);
+	uranus = new Ball('Uranus', false,ImgUranus, 1, 0,0,  -19.2184*AU,0, 25559e3, 5.965e24*14.54, 6.81e3, Math.PI/2);
+	neptune = new Ball('Neptune', false,ImgNeptune, 1, 0,0,  -30.1104*AU,0, 24764e3, 5.965e24*17.15, 5.43e3, Math.PI/2);
+
+	me = new Ball('My Ship', true, ImgShip, 1, 0,0, -AU, -6.375e6-1e5, 1e2, 10e3, 29.79e3+1000, 1.3);
+
+	universe.push(me);
+	universe.push(earth);
+	universe.push(moon);
+	universe.push(sun);
+	universe.push(mercury);
+	universe.push(venus);
+	universe.push(mars);
+	universe.push(jupiter);
+	universe.push(jupiter2);
+	universe.push(saturn);
+	universe.push(uranus);
+	universe.push(neptune);
+	indexShip=0;//universe.length-1;
+	currentball=7;//indexShip;
+};
+
+function getangle(dx, dy){
+dx=dx || 0;
+dy=dy || 0;
+var a=Math.atan(dy/dx);
+if (dx<0 && dy>0) { a+=Math.PI; };
+if (dx<0 && dy<0) { a+=Math.PI; };
+if (dx>0 && dy<0) { a+=2*Math.PI; };
+if (dx<0 && dy==0) { a=Math.PI;};
+if (dx==0 && dy==0) { a=0;};
+return a%(Math.PI*2);
+};
+
+function drawOrbit(X,Y,M,x,y,m,rv,rdv,zoom){
+var zoom=zoom,
+	G=6.67259e-11, M=M, m=m, 
+	X=X, Y=Y, x=x, y=y,
+	rv=rv, rdv=rdv, 
+	A, a, b, c1, c2, c, d, r, t, rot;
+	
+r=Math.pow((X-x)*(X-x)+(Y-y)*(Y-y),1/2);
+A=getangle(X-x, Y-y)-rdv;
+a=-G*M*m/(m*rv*rv-2*G*M*m/r);
+if (a<=0) return;
+d=G*G*M*M*m*m-4*(m*rv*rv*r*r*Math.sin(A)*Math.sin(A)/2)*(G*M*m/r-m*rv*rv/2);
+c1=1/((G*M*m+Math.pow(d, 1/2))/(m*rv*rv*r*r*Math.sin(A)*Math.sin(A)))-a;
+c2=1/((G*M*m-Math.pow(d, 1/2))/(m*rv*rv*r*r*Math.sin(A)*Math.sin(A)))-a;
+c= (c1>0) ? c1 : c2;
+b=Math.pow(Math.abs(a*a-c*c),1/2);
+var tt=(r*r+4*c*c-(2*a-r)*(2*a-r))/(4*r*c);
+if (tt>1){tt=1} else if (tt<-1){tt=-1};
+t=Math.acos(tt);
+if (Math.tan(A)<0){t=-t};
+rot=getangle(x-X,y-Y)-t;
+
+ctx.save();
+ctx.translate(canvas.width/2 + X*zoom -universe[currentball].x*zoom, canvas.height/2 + Y*zoom -universe[currentball].y*zoom);
+ctx.rotate(rot);
+ctx.translate(c*zoom, 0);
+ctx.scale(1,b/a);
+ctx.strokeStyle="rgba(140,180,255,0.4)";
+ctx.beginPath();
+ctx.arc(0,0,a*zoom,0,Math.PI*2);
+ctx.stroke();
+ctx.restore();
+
+// 
+// ctx.save();
+// ctx.translate(canvas.width/2, canvas.height/2);
+// ctx.fillStyle="#ff5555";
+// ctx.fillRect(x*zoom-2,y*zoom-2,4,4);
+// ctx.fillStyle="#55ff55";
+// ctx.fillRect(X*zoom-4,Y*zoom-4,8,8);
+// ctx.strokeStyle="rgba(255,0,0,0.5)";
+// ctx.beginPath();
+// ctx.moveTo(x*zoom, y*zoom);
+// ctx.lineTo(x*zoom+50*Math.cos(dv), y*zoom+50*Math.sin(dv));
+// ctx.stroke();
+// ctx.restore();
+};
+
+function Ball(name,ismanmade, img,imgScale, imgOffsetX, imgOffsetY, x,y,r,m,v,dv){
+	this.img=img;
+	this.imgScale=imgScale;
+	this.imgOffsetX=imgOffsetX;
+	this.imgOffsetY=imgOffsetY;
+	this.r=r;
+	this.m=m;
+	this.x=x;
+	this.y=y;
+	this.v=v;
+	this.dv=dv;
+	this.a=0;
+	this.da=0;
+	this.tail=[];
+	this.live=true;
+	this.name=name;
+	this.ismanmade=ismanmade;
+	this.master=0;
+	this.ax=0;
+	this.ay=0;
+	this.d=0;
+	this.thrust=0;
+};
+Ball.prototype={
+	draw: function() {
+		if (showOrbit) drawOrbit(universe[this.master].x, universe[this.master].y, universe[this.master].m,
+				  this.x, this.y, this.m, this.rv, this.rdv, zoom);
+
+		var point=[this.x, this.y];
+		this.tail.push(point);
+ 		if (this.tail.length>500){this.tail.splice(0,1);};	 	
+
+		if (showTail && this.tail.length>2){
+			ctx.save();
+			ctx.translate(canvas.width/2-universe[currentball].x*zoom,
+				canvas.height/2-universe[currentball].y*zoom);
+			ctx.beginPath();			
+		//	ctx.moveTo(this.tail[this.tail.length-1][0]*zoom,this.tail[this.tail.length-1][1]*zoom);
+			ctx.moveTo(this.x*zoom, this.y*zoom);
+			for (i=this.tail.length-1; i>=0; i--){
+				ctx.lineTo(this.tail[i][0]*zoom,this.tail[i][1]*zoom);
+			};
+			ctx.lineWidth=2;
+			ctx.strokeStyle='rgba(150,150,150,0.6)';
+			ctx.stroke();
+			ctx.restore();
+		};
+				  
+// 		var point=[this.x-universe[this.master].x, 
+// 			this.y-universe[this.master].y];
+// 		this.tail.push(point);
+//  		if (this.tail.length>1000){this.tail.splice(0,1);};	 	
+// 
+// 		if (showTail){
+// 			ctx.save();
+// 			ctx.translate(canvas.width/2-universe[currentball].x*zoom+universe[this.master].x*zoom,
+// 				canvas.height/2-universe[currentball].y*zoom+universe[this.master].y*zoom);
+// 			ctx.beginPath();
+// 			ctx.moveTo(this.tail[this.tail.length-1][0]*zoom,this.tail[this.tail.length-1][1]*zoom);
+// 			for (i=this.tail.length-2; i>=0;i--){
+// 				ctx.lineTo(this.tail[i][0]*zoom,this.tail[i][1]*zoom);
+// 			};
+// 			ctx.strokeStyle='rgba(150,150,150,0.8)';
+// 			ctx.stroke();
+// 			ctx.restore();
+// 		};
+
+		ctx.save();
+		ctx.translate(canvas.width/2-universe[currentball].x*zoom+this.x*zoom, 
+				canvas.height/2-universe[currentball].y*zoom+this.y*zoom);
+		ctx.rotate(this.d);
+		var longside, imgH, imgW;
+		if (this.img.width>this.img.height) {
+			imgW=this.imgScale*this.r*zoom*2,
+			imgH=imgW*this.img.height/this.img.width;
+			longside=imgW;
+		} else {
+			imgH=this.imgScale*this.r*zoom*2,
+			imgW=imgH*this.img.width/this.img.height;
+			longside=imgH;
+		};		
+		ctx.drawImage(this.img, -imgW/2+imgW*this.imgOffsetX, -imgH/2+imgH*this.imgOffsetY, imgW, imgH);
+		
+		if (drawcircle){
+		ctx.strokeStyle="red";
+		ctx.beginPath();
+		var rr=this.r*zoom;
+		if (rr<2) {rr=2};
+		ctx.arc(0,0,rr,0,2*Math.PI);
+		ctx.stroke();
+		};
+		ctx.restore();
+		
+	ctx.save();
+	ctx.translate(canvas.width/2-universe[currentball].x*zoom+this.x*zoom, 
+			canvas.height/2-universe[currentball].y*zoom+(this.y-this.r)*zoom);	
+	ctx.font="12px Arial";
+	ctx.textAlign="center";
+	ctx.fillStyle="rgba(255,255,255,0.4)";
+	ctx.fillText(this.name,0,-6);
+	ctx.restore();
+
+	},
+	
+	update: function(){
+		this.d=this.dv;
+		if (this.name=='My Ship') this.d+=Math.PI/2;
+		this.ax=0;
+		this.ay=0;
+		var biggest=-1;
+		for (var i in universe){
+			if (universe[i]!=this){				
+				this.a=gravity(this, universe[i])/this.m;
+				if (this.a>biggest){biggest=this.a; this.master=i;};
+				this.da=getangle(universe[i].x-this.x, universe[i].y-this.y);
+				this.ax+=this.a*Math.cos(this.da);
+				this.ay+=this.a*Math.sin(this.da);								
+			};
+		};
+				
+// 		this.ax+=this.thrust*Math.cos(this.d-Math.PI/2);
+// 		this.ay+=this.thrust*Math.sin(this.d-Math.PI/2);
+// 		this.da=getangle(this.ax,this.ay);
+
+		this.vx=this.v*Math.cos(this.dv);
+		this.vy=this.v*Math.sin(this.dv);		
+
+		this.vx+=tzoom*interval/1000*this.ax;
+		this.vy+=tzoom*interval/1000*this.ay;
+			
+		this.x+=tzoom*interval/1000*this.vx;
+		this.y+=tzoom*interval/1000*this.vy;
+ 		
+ 		this.rvx=this.vx-universe[this.master].vx;
+ 		this.rvy=this.vy-universe[this.master].vy;
+ 		
+ 		this.rx=this.x-universe[this.master].x;
+ 		this.ry=this.y-universe[this.master].y; 		
+ 		
+ 	 	this.v=Math.pow((Math.pow(this.vx,2)+Math.pow(this.vy,2)),1/2);
+ 		this.dv=getangle(this.vx, this.vy);
+
+ 		this.rv=Math.pow(Math.pow(this.rvx,2)+Math.pow(this.rvy,2),1/2);
+ 		this.rdv=getangle(this.rvx, this.rvy); 		
+	}
+};
+
+function gravity(a,b){
+	return (a.m*b.m*6.67259e-11)/(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2));
+};
+
+function distance(a,b){
+	return Math.pow(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2), 1/2);
+};
+
+function resize(){
+	canvas.width=window.innerWidth;
+	canvas.height=window.innerHeight;
+};
+
+Date.prototype.format = function(fmt) 
+{ //author: meizz 
+  var o = { 
+    "M+" : this.getMonth()+1,                 //月份 
+    "d+" : this.getDate(),                    //日 
+    "h+" : this.getHours(),                   //小时 
+    "m+" : this.getMinutes(),                 //分 
+    "s+" : this.getSeconds(),                 //秒 
+    "q+" : Math.floor((this.getMonth()+3)/3), //季度 
+    "S"  : this.getMilliseconds()             //毫秒 
+  }; 
+  if(/(y+)/.test(fmt)) 
+    fmt=fmt.replace(RegExp.$1, ((this.getFullYear())+"").substr(4 - RegExp.$1.length)); 
+  for(var k in o) 
+    if(new RegExp("("+ k +")").test(fmt)) 
+  fmt = fmt.replace(RegExp.$1, (RegExp.$1.length==1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length))); 
+  return fmt; 
+};
+
+function printline(s){
+	newlinepos+=20;
+	ctx.save();
+	ctx.font="16px Arial";
+	ctx.fillStyle="#bbbbbb";
+	ctx.fillText(s,0,newlinepos);
+	ctx.restore();
+};
+
+function showstatus(){
+	var t= new Date((lasttick-starttime)*tzoom);
+	printline("Launched At 1970-01-01 08:00:00");
+	printline("Current Time= "+t.format("yyyy-MM-dd hh:mm:ss"));
+	printline("Time Multiplier: x"+tzoom+" (Q: Faster | W: Slower)");
+	printline("Zoom= "+zoom);
+	printline("Physical Simulation FPS= "+Math.round(1000/interval));
+	printline("Animation FPS= "+Math.round(1000/drawinterval));
+	printline("(A: Zoom In | Z: Zoom Out)");
+	printline("");
+	printline("Current Object= "+universe[currentball].name+" (Space: Switch Current Object)");
+	printline("Mass= "+universe[currentball].m);
+	printline("Radius= "+universe[currentball].r);
+	printline("Center X= "+universe[currentball].x);
+	printline("Center Y= "+universe[currentball].y);
+	printline("Acceleration= "+universe[currentball].a);
+	printline("Acceleration Angle= "+universe[currentball].da);
+	printline("Velocity= "+universe[currentball].v);
+	printline("Velocity Angle= "+universe[currentball].dv);
+	printline("Tail Length= "+universe[currentball].tail.length);
+	printline("");
+	printline("Master Object= "+universe[universe[currentball].master].name);
+	printline("Master Gravidy= "+gravity(universe[currentball], universe[universe[currentball].master]));
+	printline("Master Center Distance= "+distance(universe[currentball], universe[universe[currentball].master]));
+	printline("Master Contact Distance= "+(distance(universe[currentball], universe[universe[currentball].master])-
+		universe[currentball].r-universe[universe[currentball].master].r));	
+	printline("Master Relative Velocity= "+universe[currentball].rv);
+	printline("Master Relative Velocity Angel= "+universe[currentball].rdv);
+	
+	ctx.save();
+	ctx.fillStyle='rgba(0,0,0,0.4)';
+	ctx.fillRect(0,0,420, canvas.height);
+	var img=universe[indexShip].img;
+	ctx.translate(190,630);
+	ctx.rotate(universe[indexShip].d);
+	ctx.drawImage(img, -40, -80*img.height/img.width/2, 80, 80*img.height/img.width);
+	ctx.restore();
+
+};
+
+function update(){
+	thistick=new Date();
+	if (thistick-lasttick<1000) {interval=thistick-lasttick;};
+	lasttick=thistick;
+	for (var i in universe){
+		universe[i].update();
+	};
+};
+
+setInterval("update()",0);
+
+function anim(){
+	thisdraw=new Date();
+	if (thisdraw-lastdraw<1000) {drawinterval=thisdraw-lastdraw;};
+	lastdraw=thisdraw;
+
+	ctx.save();
+	ctx.fillStyle='#000000';
+	ctx.fillRect(0,0,canvas.width, canvas.height);
+	for (var i in universe){
+		universe[i].draw();
+	};
+	ctx.restore();
+		
+	newlinepos=0;
+	if (showStatus) showstatus();
+	animId=requestAnimationFrame(anim);
+};
+
+document.onkeydown = function(){
+    var oEvent = window.event;
+    if (oEvent.keyCode ==65) {zoom=zoom*1.05};
+    if (oEvent.keyCode ==90) {zoom=zoom/1.05};   
+    if (oEvent.keyCode ==81) {tzoom=tzoom*1.05; if (tzoom>3600*24*30){tzoom=3600*24*30};};
+    if (oEvent.keyCode ==87) {tzoom=tzoom/1.05; if (tzoom<1){tzoom=1;}};   
+    if (oEvent.keyCode ==32) {
+    	currentball++; 
+    	if (currentball==universe.length){currentball=0};
+    };
+
+    if (oEvent.keyCode ==38) {universe[indexShip].v*=1.1;};
+    if (oEvent.keyCode ==40) {universe[indexShip].v/=1.1;};
+
+    if (oEvent.keyCode ==39) {universe[indexShip].dv+=0.05;};
+    if (oEvent.keyCode ==37) {universe[indexShip].dv-=0.05;};
+
+    if (oEvent.keyCode ==67) {drawcircle=!drawcircle;};
+
+    if (oEvent.keyCode ==79) {showOrbit=!showOrbit;};
+    if (oEvent.keyCode ==83) {showStatus=!showStatus;};
+    if (oEvent.keyCode ==84) {showTail=!showTail;};
+};
+
+document.onkeyup = function(){
+    var oEvent = window.event;
+    if (oEvent.keyCode ==40 || oEvent.keyCode ==38) {universe[indexShip].thrust=0;};
+};
+
+starttime=new Date();
+loadimages();
+buildobjs();
+resize();
+window.addEventListener("resize", resize);
+ImgEarth.onload=anim;
+
+</script>

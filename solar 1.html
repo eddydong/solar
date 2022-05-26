@@ -1,0 +1,258 @@
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">  
+</head>
+
+<body id="body" style="overflow: hidden; margin: 0; background: #000000">
+<div id="DivMain" sytle="width:100%; height:100%; position:absolute;">
+<canvas id="DivCanvas" sytle="width:100%; height:100%; position:absolute;"></canvas>
+</div>
+</body>
+
+<script>
+
+var
+	requestAnimationFrame = window.requestAnimationFrame 
+		|| window.mozRequestAnimationFrame 
+		|| window.webkitRequestAnimationFrame 
+		|| window.msRequestAnimationFrame,
+
+	cancelAnimationFrame = window.cancelAnimationFrame 
+		|| window.mozCancelAnimationFrame 
+		|| window.webkitCancelRequestAnimationFrame,
+
+	ImgEarth = new Image(), ImgMoon = new Image(), ImgShip = new Image(),
+	ImgSun = new Image(),
+
+	canvas=document.getElementById("DivCanvas"),
+	ctx=canvas.getContext("2d"),
+	
+	shortedge, earth, me, zoom=1/30000, tzoom=60, thistick=0, lasttick=0, 
+	interval=17, universe=[], currentball=0, starttime=0, newlinepos=0;
+
+
+function loadimages(){
+	ImgEarth.src = "earth.png";
+	ImgMoon.src="moon.png";
+	ImgShip.src="ship.png";
+	ImgSun.src="sun.png";
+};
+
+function buildobjs(){
+	//name,img,imgScale, x,y,r,m,v,dv
+	earth= new Ball('Earth', ImgEarth, 1.02, 0, 0, 6.375e6, 5.965e24, 0, 0);
+	moon=new Ball('Moon', ImgMoon, 1, 0, -384000e3, 1738.14e3, 7.349e22, 1020, 0);
+	sun = new Ball('Sun', ImgSun, 1.17, 1.5e11,0, 696300e3, 1.989e30, 0, 0);
+
+	me = new Ball('Ship', ImgShip, 1, 0,-6.375e6-1e2, 1e2, 100e3, 7900, -0.01);
+
+	universe.push(earth);
+	universe.push(moon);
+	universe.push(me);
+	universe.push(sun);
+};
+
+function getangle(dx, dy){
+dx=dx || 0;
+dy=dy || 0;
+var a=Math.atan(dy/dx);
+if (dx<0 && dy>0) { a+=Math.PI; };
+if (dx<0 && dy<0) { a+=Math.PI; };
+if (dx>0 && dy<0) { a+=2*Math.PI; };
+if (dx<0 && dy==0) { a=Math.PI;};
+if (dx==0 && dy==0) { a=0;};
+return a%(Math.PI*2);
+};
+
+function Ball(name,img,imgScale, x,y,r,m,v,dv){
+	this.img=img;
+	this.imgScale=imgScale;
+	this.r=r;
+	this.m=m;
+	this.x=x;
+	this.y=y;
+	this.v=v;
+	this.dv=dv;
+	this.a=0;
+	this.da=0;
+	this.tail=[];
+	this.live=true;
+	this.name=name;
+};
+Ball.prototype={
+	draw: function(){
+		for (i in this.tail){
+			ctx.save();
+			ctx.fillStyle='rgba(100,100,100,'+i/this.tail.length+')';
+			ctx.translate(canvas.width/2-universe[currentball].x*zoom+this.tail[i][0]*zoom,
+				canvas.height/2-universe[currentball].y*zoom+this.tail[i][1]*zoom);
+			ctx.fillRect(-1,-1,2,2);
+			ctx.restore();
+		};
+
+		ctx.save();
+		ctx.translate(canvas.width/2-universe[currentball].x*zoom+this.x*zoom, 
+				canvas.height/2-universe[currentball].y*zoom+this.y*zoom);
+		ctx.rotate(this.d);
+		var longside, imgH, imgW;
+		if (this.img.width>this.img.height) {
+			imgW=this.imgScale*this.r*zoom*2,
+			imgH=imgW*this.img.height/this.img.width;
+			longside=imgW;
+		} else {
+			imgH=this.imgScale*this.r*zoom*2,
+			imgW=imgH*this.img.width/this.img.height;
+			longside=imgH;
+		};		
+		ctx.drawImage(this.img, -imgW/2, -imgH/2, imgW, imgH);
+		
+		ctx.strokeStyle="red";
+		ctx.beginPath();
+		ctx.arc(0,0,this.r*zoom,0,2*Math.PI);
+		ctx.stroke();
+
+		ctx.restore();
+	},
+	update: function(){	
+		this.d=this.dv+Math.PI/2;
+		this.ax=0;
+		this.ay=0;
+		for (var i in universe){
+			if (universe[i]!=this){
+				this.a=gravity(this, universe[i])/this.m;
+				this.da=getangle(universe[i].x-this.x, universe[i].y-this.y);
+				this.ax+=this.a*Math.cos(this.da);
+				this.ay+=this.a*Math.sin(this.da);				
+				if (distance(this, universe[i])<=this.r+universe[i].r) {
+					this.live=false;
+					if (this.m>universe[i].m) {
+						universe.splice[i];			
+					} else {
+						//universe.splice[i];
+					};
+				};
+			};
+		};
+				
+		if (this.live) {
+		this.vx=this.v*Math.cos(this.dv);
+		this.vy=this.v*Math.sin(this.dv);
+		
+		this.vx+=tzoom*interval/1000*this.ax;
+		this.vy+=tzoom*interval/1000*this.ay;
+			
+ 	 	this.v=Math.pow((Math.pow(this.vx,2)+Math.pow(this.vy,2)),1/2);
+ 		this.dv=getangle(this.vx, this.vy);
+ 		
+		this.x+=tzoom*interval/1000*this.v*Math.cos(this.dv);
+		this.y+=tzoom*interval/1000*this.v*Math.sin(this.dv);
+
+		}
+
+		var point=[this.x, this.y];
+		this.tail.push(point);
+	 	if (this.tail.length>2000){this.tail.splice(1,1);};	 	
+	}
+};
+
+function gravity(a,b){
+	return (a.m*b.m*6.67259e-11)/(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2));
+};
+
+function distance(a,b){
+	return Math.pow(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2), 1/2);
+};
+
+function resize(){
+	canvas.width=window.innerWidth;
+	canvas.height=window.innerHeight;
+};
+
+Date.prototype.format = function(fmt) 
+{ //author: meizz 
+  var o = { 
+    "M+" : this.getMonth()+1,                 //月份 
+    "d+" : this.getDate(),                    //日 
+    "h+" : this.getHours(),                   //小时 
+    "m+" : this.getMinutes(),                 //分 
+    "s+" : this.getSeconds(),                 //秒 
+    "q+" : Math.floor((this.getMonth()+3)/3), //季度 
+    "S"  : this.getMilliseconds()             //毫秒 
+  }; 
+  if(/(y+)/.test(fmt)) 
+    fmt=fmt.replace(RegExp.$1, ((this.getFullYear())+"").substr(4 - RegExp.$1.length)); 
+  for(var k in o) 
+    if(new RegExp("("+ k +")").test(fmt)) 
+  fmt = fmt.replace(RegExp.$1, (RegExp.$1.length==1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length))); 
+  return fmt; 
+};
+
+function printline(s){
+	newlinepos+=20;
+	ctx.save();
+	ctx.font="16px Arial";
+	ctx.fillStyle="#bbbbbb";
+	ctx.fillText(s,0,newlinepos);
+	ctx.restore();
+};
+
+function showstatus(){
+	var t= new Date((lasttick-starttime)*tzoom);
+	printline("Launched At 1970-01-01 08:00:00");
+	printline("Current Time= "+t.format("yyyy-MM-dd hh:mm:ss"));
+	printline("1 Second= "+tzoom/60+" Mintues (Q: Faster | W: Slower)");
+	printline("(A: Zoom In | Z: Zoom Out)");
+	printline("");
+	printline("Current Object= "+universe[currentball].name+" (Space: Switch Current Object)");
+	printline("Mass= "+universe[currentball].m);
+	printline("Radius= "+universe[currentball].r);
+	printline("Center X= "+universe[currentball].x);
+	printline("Center Y= "+universe[currentball].y);
+	printline("Acceleration= "+universe[currentball].a);
+	printline("Acceleration Angle= "+universe[currentball].da);
+	printline("Velocity= "+universe[currentball].v);
+	printline("Velocity Angle= "+universe[currentball].dv);
+	printline("Tail Length= "+universe[currentball].tail.length);
+};
+
+function anim(){
+	thistick=new Date();
+	//interval=thistick-lasttick;
+	lasttick=thistick;
+
+	ctx.fillStyle='#000000';
+	ctx.fillRect(0,0,canvas.width, canvas.height);
+	
+	for (var i in universe){
+		universe[i].update();
+		universe[i].draw();
+	};
+	
+	newlinepos=0;
+	showstatus();
+
+	animId=requestAnimationFrame(anim);
+};
+
+document.onkeydown = function(){
+    var oEvent = window.event;
+    if (oEvent.keyCode ==65) {zoom=zoom*1.2};
+    if (oEvent.keyCode ==90) {zoom=zoom/1.2};   
+    if (oEvent.keyCode ==81) {tzoom=tzoom*1.2};
+    if (oEvent.keyCode ==87) {tzoom=tzoom/1.2};   
+    if (oEvent.keyCode ==32) {
+    	currentball++; 
+    	if (currentball==universe.length){currentball=0};
+    };
+};
+
+starttime=new Date();
+loadimages();
+buildobjs();
+ImgEarth.onload=resize;
+window.addEventListener("resize", resize);
+anim();
+
+</script>
